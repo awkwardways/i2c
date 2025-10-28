@@ -18,11 +18,13 @@ entity i2c_master is
 end entity i2c_master;
 
 architecture rtl of i2c_master is
-  type i2c_state_t is (idle, start, addressing, message, acknowledge, stop_symbol);
+  type i2c_state_t is (idle, start, addressing, wr_message, rd_message, acknowledge, rd_acknowledge, stop_symbol);
   constant SYS_PERIODS_IN_2_uS : integer := (SYS_CLK_FREQUENCY / SCL_CLK_FREQUENCY) / 5; 
   constant SYS_PERIODS_IN_SCL : integer := (SYS_CLK_FREQUENCY / SCL_CLK_FREQUENCY);
   signal i2c_state : i2c_state_t := idle;
   signal goto_stop : std_logic := '0';
+  signal rw_latch : std_logic;
+  signal rd_register : std_logic_vector(7 downto 0) := x"00";
 begin
 
   process(ena, sys_clk)
@@ -48,10 +50,10 @@ begin
           scl <= '0';
           HD_STA_counter := 0;
           i2c_state <= addressing;
+          rw_latch <= rw;
         end if;
 
         when addressing => 
-        ACK_return := '1';
         SCL_counter := SCL_counter + 1;
         --Generate SCL clock
         if SCL_counter = SYS_PERIODS_IN_SCL / 2 then 
@@ -71,7 +73,7 @@ begin
           if SDA_bit_counter < 7 then
             sda <= address(SDA_bit_counter);
           elsif SDA_bit_counter = 7 then
-            sda <= 'Z' when rw = '1' else '0';
+            sda <= 'Z' when rw_latch = '1' else '0';
           end if;
           SDA_bit_counter := SDA_bit_counter + 1;
         end if;
@@ -83,17 +85,19 @@ begin
         elsif SCL_counter = SYS_PERIODS_IN_SCL then
           scl <= '0';
           SCL_counter := 0;
-          if sda = '0' then --acknowledge received
-            i2c_state <= stop_symbol when goto_stop = '1' else message;
+          if sda = '0' and goto_stop = '0' then --acknowledge received 
+            i2c_state <= rd_message when rw_latch = '1' else wr_message;
+            sda <= 'Z';
+          elsif sda = '0' and goto_stop = '1' then
+            i2c_state <= stop_symbol;
             sda <= '0';
-          else --nack received
+          else --nack received 
             i2c_state <= idle;
             scl <= 'Z';
           end if;
         end if;
 
-        when message => 
-        ACK_return := '0';
+        when wr_message => 
         SCL_counter := SCL_counter + 1;
         --Generate SCL clock
         if SCL_counter = SYS_PERIODS_IN_SCL / 2 then 
@@ -112,9 +116,42 @@ begin
         --SDA timing
         if SCL_counter = SYS_PERIODS_IN_2_uS then
           if SDA_bit_counter < 8 then
-            sda <= data(SDA_bit_counter);
+            sda <= 'Z' when data(SDA_bit_counter) = '1' else '0'  ;
           end if;
           SDA_bit_counter := SDA_bit_counter + 1;
+        end if;
+
+        when rd_message => 
+        SCL_counter := SCL_counter + 1;
+        sda <= 'Z';
+        if SCL_counter = SYS_PERIODS_IN_SCL / 2 then
+          scl <= 'Z';
+          if SDA_bit_counter < 8 then
+            rd_register(SDA_bit_counter) <= sda;
+            SDA_bit_counter := SDA_bit_counter + 1;
+          end if;
+        elsif SCL_counter = SYS_PERIODS_IN_SCL then
+          scl <= '0';
+          SCL_counter := 0;
+          if SDA_bit_counter = 8 then
+            i2c_state <= rd_acknowledge;
+            SDA_bit_counter := 0;
+          end if;
+        end if;
+
+        when rd_acknowledge => 
+        SCL_counter := SCL_counter + 1;
+        if SCL_counter = SYS_PERIODS_IN_SCL / 2 then
+          scl <= 'Z';
+        elsif SCL_counter = SYS_PERIODS_IN_SCL then
+          scl <= '0';
+          SCL_counter := 0;
+          i2c_state <= rd_message when ena = '1' else stop_symbol;
+          sda <= 'Z' when ena = '1' else '0';
+        end if;
+
+        if SCL_counter = SYS_PERIODS_IN_2_uS * 2 then 
+          sda <= '0' when ena = '1' else 'Z';
         end if;
 
         when stop_symbol => 

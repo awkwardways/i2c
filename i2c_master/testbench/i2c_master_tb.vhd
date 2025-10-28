@@ -42,7 +42,11 @@ begin
     ena_tb <= '0';
     wait for 10000 ns;
     sda_tb <= 'H';
-    wait for 80000 ns;
+    wait for 40000 ns;
+    sda_tb <= '0';
+    wait for 10000 ns;
+    sda_tb <= 'H';
+    wait for 10000 ns;
     sda_tb <= '0';  
     wait for 10000 ns;
     sda_tb <= 'H';
