@@ -1,15 +1,6 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
-
-/*
-
-  QUITAR IF NENA = '0'.
-  ROMPE EL ESTADO STOP_SYM!!!1! :O
-
-*/
-
-
 entity i2c_controller is
   generic (
     SYSTEM_CLK_FREQUENCY : integer := 27e6;
