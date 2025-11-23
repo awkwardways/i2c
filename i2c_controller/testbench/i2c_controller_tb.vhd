@@ -14,8 +14,9 @@ architecture sim of i2c_controller_tb is
   signal tb_nena : std_logic := '0';
   signal tb_rw : std_logic := '0';
   signal tb_data_out : std_logic_vector(7 downto 0);
-  signal tb_data_in : std_logic_vector(7 downto 0) := x"51";
+  signal tb_data_in : std_logic_vector(7 downto 0) := x"51"; --01010001
   signal tb_address : std_logic_vector(6 downto 0) := "1001001";
+  signal tb_busy : std_logic;
 begin
 
   UUT: entity work.i2c_controller(rtl)
@@ -31,40 +32,44 @@ begin
     rw => tb_rw,
     data_out => tb_data_out,
     data_in => tb_data_in,
-    address => tb_address
+    address => tb_address,
+    busy => tb_busy
   );
 
   tb_clk <= not tb_clk after TB_SYSTEM_CLK_PERIOD / 2;
   tb_sda <= 'H';
   tb_scl <= 'H';
   
-  process
-  begin
-    wait for 85080 ns;
-    tb_sda <= '0';
-    wait for 10095 ns;
-    tb_sda <= 'H';
-    wait for 99825 ns;
-    tb_sda <= '0';
-    wait for 5000 ns;
-    tb_sda <= 'H';
+  -- process
+  -- begin
+    -- wait for 85080 ns;
+    -- tb_sda <= '0';
+    -- wait for 10095 ns;
+    -- tb_sda <= 'H';
+    -- wait for 99825 ns;
+    -- tb_sda <= '0';
+    -- wait for 5000 ns;
+    -- tb_sda <= 'H';
     -- 195000 ns para ack wr
-    wait;
-  end process;
+    -- wait;
+  -- end process;
+  
+  -- process
+  -- begin
+    -- wait for 95075 ns;
+    -- tb_scl <= '0';
+    -- wait for 20000 ns;
+    -- tb_scl <= 'H';
+    -- wait;
+  -- end process;
   
   process
   begin
-    wait for 95075 ns;
-    tb_scl <= '0';
-    wait for 20000 ns;
-    tb_scl <= 'H';
-    wait;
-  end process;
-  
-  process
-  begin
-    wait for 195000 ns;
-    tb_nena <= '1';
+    wait for 89975 ns;
+    tb_sda <= '0';
+    -- 96975
+    wait for 7000 ns;
+    tb_sda <= 'H';
     wait;
   end process;
 
