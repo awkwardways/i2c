@@ -21,7 +21,7 @@ end entity i2c_controller;
 
 architecture rtl of i2c_controller is 
   type scl_fsm_state_t is (scl_idle, pull_line, release_line, stretch);
-  type sda_fsm_state_t is (sda_idle, repeat_start_sym, set_up_start_sym, start_sym, addressing, addr_ack, set_sda_rd, hd_sda_rd, set_ack_rd, hd_ack_rd_low, hd_ack_rd_hi, sda_wr, ack_wr, stop_sym_scl, stop_sym_sda, buffer_time);
+  type sda_fsm_state_t is (sda_idle, repeat_start_sym, set_up_start_sym, start_sym, addressing, addr_ack, sda_rd, hd_sda_rd, ack_rd, hd_ack_rd, sda_wr, ack_wr, stop_sym_scl, stop_sym_sda, buffer_time);
   constant SYSTEM_CLK_CYCLES_IN_I2C_SPEED : integer := (SYSTEM_CLK_FREQUENCY) / (I2C_BUS_KBITPS);
   constant SYSTEM_CLK_CYCLES_IN_2US : integer := SYSTEM_CLK_CYCLES_IN_I2C_SPEED / 5;
   signal scl_en : std_logic := '1';
@@ -85,7 +85,7 @@ begin
 
         when sda_idle => 
           sda <= '0' when nena = '0' else 'Z';
-          sda_state <= start_sym when nena = '0' else sda_idle;
+          sda_state <= start_sym when nena = '0' else sda_idle;  
           busy <= nena;
           address_latch <= address when nena = '0' else (others => '0');
           wr_data_latch <= data_in when nena = '0' else (others => '0');
@@ -110,7 +110,7 @@ begin
           when addr_ack =>
             if scl_state = release_line then
               if sda = '0' then --ack
-                sda_state <= sda_wr;
+                sda_state <= sda_wr when rw = '0' else hd_sda_rd;
               else --nack
                 sda_state <= repeat_start_sym;
               end if;
@@ -127,7 +127,24 @@ begin
             if scl_state = release_line then
               sda_state <= stop_sym_sda;
             end if;
+            
+          when sda_rd => 
+            if scl_state = release_line then 
+              data_out(i) <= sda;
+              i := i + 1 when i <= 7 else 0;              
+              sda_state <= hd_sda_rd when i <= 7 else ack_rd;
+            end if;
+            
+          when hd_sda_rd => 
+            sda_state <= hd_sda_rd when scl_state = release_line else sda_rd;
           
+          when ack_rd =>
+            if scl_state = pull_line and trans = '0' then
+              sda <= 'Z';
+            elsif scl_state = stretch then
+              sda_state <= stop_sym_sda;
+            end if;
+            
           when repeat_start_sym => 
             if scl_state = stretch then
               scl_en <= '1';
