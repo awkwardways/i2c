@@ -42,7 +42,7 @@ begin
     sda => tb_sda,
     scl => tb_scl,
     clk => tb_clk,
-    nen => tb_nen
+    en => tb_nen
   );
 
   tb_clk <= not tb_clk after TB_SYSTEM_CLK_PERIOD / 2;
