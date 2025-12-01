@@ -15,7 +15,7 @@ architecture sim of i2c_target_tb is
   signal tb_rw : std_logic := '1';
   signal tb_data_out : std_logic_vector(7 downto 0);
   signal tb_data_in : std_logic_vector(7 downto 0) := x"51"; --01010001
-  signal tb_address : std_logic_vector(6 downto 0) := "0000011";
+  signal tb_address : std_logic_vector(6 downto 0) := 7x"08";
   signal tb_busy : std_logic;
   signal tb_nen : std_logic := '0';
 begin
