@@ -7,6 +7,7 @@ generic (
 );
 port (
   data_in : in std_logic_vector(7 downto 0) := x"00";
+  data_out : out std_logic_vector(7 downto 0) := x"00";
   sda : inout std_logic := 'Z';
   scl : inout std_logic := 'Z';
   clk : in std_logic;
@@ -15,7 +16,7 @@ port (
 end entity i2c_target;
 
 architecture rtl of i2c_target is
-  type target_state_t is (standby, listen_addr, mode, write_ack, read_ack, transfer);
+  type target_state_t is (standby, listen_addr, mode, write_ack, read_ack, transfer, receive);
   signal target_state : target_state_t := standby;
   signal sda_edge_register : std_logic_vector(1 downto 0) := "11";
   signal scl_edge_register : std_logic_vector(1 downto 0) := "11";
@@ -44,6 +45,9 @@ begin
     if en = '0' then
       if rising_edge(clk) then
         scl_edge_register <= to_x01z(scl) & scl_edge_register(1);
+          if stop = '0' then
+            target_state <= standby;
+        end if;
         case target_state is
           
           when standby =>
@@ -69,8 +73,10 @@ begin
           when write_ack => 
             if scl_edge_register = "01" then 
               sda <= '0';
-              target_state <= transfer;
-              data_reg <= data_in;
+            elsif scl_edge_register = "10" then
+              data_reg <= data_in when op_mode = '1' else x"00";
+              target_state <= transfer when op_mode = '1' else receive;
+              data_bit := 0;
             end if;
             
           when transfer =>
@@ -82,11 +88,21 @@ begin
               target_state <= transfer when data_bit < 8 else read_ack;
             end if;
             
+          when receive => 
+            if scl_edge_register = "10" then
+              data_reg <= data_reg(6 downto 0) & to_x01z(sda);
+              target_state <= receive when data_bit < 7 else write_ack;
+              data_bit := data_bit + 1;
+            elsif scl_edge_register = "01" then
+              sda <= 'Z';
+            end if;
+            
           when read_ack => 
             if scl_edge_register = "01" then
               sda <= 'Z';
             elsif scl_edge_register = "10" then
               target_state <= standby when to_x01z(sda) = '1' else transfer;
+              data_bit := 0;
             end if;
         end case;
         

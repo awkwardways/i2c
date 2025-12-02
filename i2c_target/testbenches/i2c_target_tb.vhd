@@ -12,8 +12,9 @@ architecture sim of i2c_target_tb is
   signal tb_scl : std_logic := 'H';
   signal tb_clk : std_logic := '0';
   signal tb_nena : std_logic := '0';
-  signal tb_rw : std_logic := '1';
+  signal tb_rw : std_logic := '0';
   signal tb_data_out : std_logic_vector(7 downto 0);
+  signal tb_trgt_data_out : std_logic_vector(7 downto 0);
   signal tb_data_in : std_logic_vector(7 downto 0) := x"51"; --01010001
   signal tb_address : std_logic_vector(6 downto 0) := 7x"08";
   signal tb_busy : std_logic;
@@ -43,7 +44,8 @@ begin
     scl => tb_scl,
     clk => tb_clk,
     en => tb_nen,
-    data_in => tb_data_in
+    data_in => tb_data_in,
+    data_out => tb_trgt_data_out
   );
 
   tb_clk <= not tb_clk after TB_SYSTEM_CLK_PERIOD / 2;
