@@ -23,7 +23,7 @@ architecture rtl of i2c_target is
   signal start : std_logic := '1';
   signal stop  : std_logic := '1'; 
   signal op_mode : std_logic := '1';
-  signal data_reg : std_logic_vector(7 downto 0) := x"00";
+  signal data_reg : std_logic_vector(7 downto 0) := x"ff";
 begin
 
   ststdet : process(sda, scl, clk, en, sda_edge_register)
@@ -74,7 +74,7 @@ begin
             if scl_edge_register = "01" then 
               sda <= '0';
             elsif scl_edge_register = "10" then
-              data_reg <= data_in when op_mode = '1' else x"00";
+              data_reg <= data_in when op_mode = '1' else x"ff";
               target_state <= transfer when op_mode = '1' else receive;
               data_bit := 0;
             end if;
@@ -91,10 +91,11 @@ begin
           when receive => 
             if scl_edge_register = "10" then
               data_reg <= data_reg(6 downto 0) & to_x01z(sda);
-              target_state <= receive when data_bit < 7 else write_ack;
               data_bit := data_bit + 1;
             elsif scl_edge_register = "01" then
-              sda <= 'Z';
+              sda <= 'Z' when data_bit < 8 else '0';
+              target_state <= receive when data_bit < 8 else write_ack;
+              data_out <= data_out when data_bit < 8 else data_reg;
             end if;
             
           when read_ack => 
@@ -102,6 +103,7 @@ begin
               sda <= 'Z';
             elsif scl_edge_register = "10" then
               target_state <= standby when to_x01z(sda) = '1' else transfer;
+              data_reg <= data_in;
               data_bit := 0;
             end if;
         end case;
